@@ -17,7 +17,9 @@ session = request.session() #爱死这个自动配制session的功能了TAT，�
 __RequestVerificationToken=""
 pageId=""
 iv=""
+HOLDONKEY=""
 accountCookies=request.cookies.RequestsCookieJar()
+wenshuCookies=request.cookies.RequestsCookieJar()
 
 
 ################### 有关算法 ####################
@@ -186,7 +188,7 @@ def getRedirectCookie(url, header):
             else:
                 break
 
-        # print(resp.headers)
+        # print(resp.cookies)
         return resp.cookies # {'url': str(resUrl), 'content': resp.content, 'header': resp.headers}
     except(request.URLError, e):
         if hasattr(e, 'reason'):
@@ -205,7 +207,7 @@ headers={
     'Accept': '*/*',
     'Accept-Encoding': 'gzip, deflate, br',
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
-    'Cache-Control': 'no-cache',
+    # 'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
     'Host': 'wenshu.court.gov.cn',
     'Pragma': 'no-cache',
@@ -223,8 +225,21 @@ headers={
 
 ################### 登录操作 ###################
 print("正在尝试登录...")
-res=session.post("https://wenshu.court.gov.cn/tongyiLogin/authorize", headers=headers, timeout=10)#, cookies=jar)
+# cookies=res.cookies
+session.cookies.update({'_bl_uid': 'v8lC4oats3suvLevy8twggszvw5e'}) #####
+headers['Host']="account.court.gov.cn"
+session.headers=headers
+res=session.post(f'https://account.court.gov.cn/api/login?{userInfoData}', headers=headers, cookies=accountCookies) #模拟登录操作
+# print(res.cookies)
+
 cookies=res.cookies
+session.cookies.update({'_bl_uid': 'v8lC4oats3suvLevy8twggszvw5e'}) #####
+headers['Host']="wenshu.court.gov.cn"
+session.headers=headers
+res=session.post("https://wenshu.court.gov.cn/tongyiLogin/authorize", headers=headers, timeout=10)#, cookies=jar)
+
+cookies=res.cookies
+wenshuCookies=res.cookies
 cookies.update({'_bl_uid': 'v8lC4oats3suvLevy8twggszvw5e'}) #####
 headers['Host']="account.court.gov.cn"
 session.headers=headers
@@ -238,9 +253,9 @@ session.get(redirectData, headers=headers, cookies=accountCookies) #模拟打开
 session.get('https://account.court.gov.cn/app', headers=headers, cookies=accountCookies)
 session.get('https://account.court.gov.cn/app?back_url=' + redirectData, headers=headers, cookies=accountCookies) #模拟打开app池
 accountInfo=session.get('https://account.court.gov.cn/captcha/getBase64?appDomain=wenshu.court.gov.cn', headers=headers, cookies=accountCookies).json() #获取用户数据，转化为JSON格式
-res=session.post('https://account.court.gov.cn/api/login', headers=headers, data=userInfoData, cookies=accountCookies) #模拟登录操作
-print(res.text)
+# print(accountInfo)
 print("登录成功！")
+HOLDONKEY=accountCookies['HOLDONKEY']
 
 # #解析Set-Cookies中的cookies字段
 # set_cookie = res.headers.get('Set-Cookie')
@@ -254,24 +269,29 @@ session.get(redirectData) #模拟重新进入登录后的主页
 ################################################
 
 ################### 检索操作 ####################
+__RequestVerificationToken=refresh__RequestVerificationToken()
 print("尝试获取列表信息...")
-session.cookies=cookies
+wenshuCookies=getRedirectCookie("https://wenshu.court.gov.cn/api/", headers)
+session.cookies=wenshuCookies
 headers['Host']='wenshu.court.gov.cn'
 session.headers=headers
-session.post('https://wenshu.court.gov.cn/api/fp/gjjsClick', headers=headers, cookies=cookies) #模拟点击高级检索按钮
-session.post('https://wenshu.court.gov.cn/api/fp/cprq', headers=headers, data="inputCprqStartVal=2023-11-17", cookies=cookies) #模拟在审判日期（开始时间）控件进行了操作
-session.post('https://wenshu.court.gov.cn/api/fp/cprq', headers=headers, data="inputCprqEndVal=2023-11-18", cookies=cookies) #模拟在审判日期（结束时间）控件进行了操作
-res=session.post('https://wenshu.court.gov.cn/website/parse/rest.q4w', headers=headers, cookies=cookies, data=f"cfg=com.lawyee.judge.dc.parse.dto.SearchDataDsoDTO%40wsCountSearch&__RequestVerificationToken={refresh__RequestVerificationToken()}&wh=907&ww=913&cs=0") #电脑挂起，无操作时会自动想服务器发送ＰＯＳＴ请求
-print(res.text)
-session.post('https://wenshu.court.gov.cn/api/fp/cprq', headers=headers, cookies=cookies, data="inputCprqStartVal=2023-11-16&inputCprqEndVal=2023-11-17&gjjsSubmit=1") #模拟在审判日期控件操作结束，检索开始的标志
+session.post('https://wenshu.court.gov.cn/api/fp/gjjsClick', headers=headers, cookies=wenshuCookies) #模拟点击高级检索按钮
+session.post('https://wenshu.court.gov.cn/api/fp/cprq?inputCprqStartVal=2023-11-17', headers=headers, cookies=wenshuCookies) #模拟在审判日期（开始时间）控件进行了操作
+session.post('https://wenshu.court.gov.cn/api/fp/cprq?inputCprqEndVal=2023-11-18', headers=headers, cookies=wenshuCookies) #模拟在审判日期（结束时间）控件进行了操作
+session.post(f'https://wenshu.court.gov.cn/website/parse/rest.q4w?cfg=com.lawyee.judge.dc.parse.dto.SearchDataDsoDTO%40wsCountSearch&__RequestVerificationToken={refresh__RequestVerificationToken()}&wh=907&ww=913&cs=0', headers=headers, cookies=wenshuCookies) #电脑挂起，无操作时会自动想服务器发送ＰＯＳＴ请求
+session.post('https://wenshu.court.gov.cn/api/fp/cprq?inputCprqStartVal=2023-11-16&inputCprqEndVal=2023-11-17&gjjsSubmit=1', headers=headers, cookies=wenshuCookies) #模拟在审判日期控件操作结束，检索开始的标志
 pageId=get_pageId()
-session.get (f'https://wenshu.court.gov.cn/website/wenshu/181217BMTKHNT2W0/index.html?pageId={get_pageId()}',headers=headers, cookies=cookies) #打开检索后的页面
+res=session.get(f'https://wenshu.court.gov.cn/website/wenshu/181217BMTKHNT2W0/index.html?pageId={pageId}',headers=headers, cookies=wenshuCookies) #打开检索后的页面
+# print(res.text)
 headers={
     'Accept': 'application/json, text/javascript, */*; q=0.01',
     'Accept-Encoding': 'gzip, deflate, br',
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
-    'Cache-Control': 'no-cache',
+    # 'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
+    'Host':'wenshu.court.gov.cn',
+    'Origin': 'https://wenshu.court.gov.cn',
+    'Access-Control-Allow-Origin': '*',
     #'Pragma': 'no-cache',
     'Referer': f'https://wenshu.court.gov.cn/website/wenshu/181217BMTKHNT2W0/index.html?pageId={pageId}d&cprqStart=2023-11-16&cprqEnd=2023-11-17',
     'Sec-Fetch-Dest': 'empty',
@@ -280,16 +300,26 @@ headers={
     'Sec-Fetch-User': '?0',
     #'Upgrade-Insecure-Requests': '1',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0',
-    'sec-ch-ua': '"Microsoft Edge";v="119", "Chromium";v="119", "Not?A_Brand";v="24"',
-    #'sec-ch-ua-mobile': '?0',
-    'sec-ch-ua-platform': '"Windows"',
+    'Sec-Ch-Ua': '"Microsoft Edge";v="119", "Chromium";v="119", "Not?A_Brand";v="24"',
+    'Sec-Ch-Ua-Mobile': '?0',
+    'Sec-Ch-Ua-Platform': '"Windows"',
     'X-Requested-With': '"XMLHttpRequest"'
 }
-__RequestVerificationToken=refresh__RequestVerificationToken()
+# session=request.session()
+session.headers=headers
+wenshuCookies=getRedirectCookie("https://wenshu.court.gov.cn/api/", headers)
+wenshuCookies.update({'_bl_uid': 'v8lC4oats3suvLevy8twggszvw5e'}) ####
+wenshuCookies.update({'HOLDONKEY': HOLDONKEY}) ####
+# print(wenshuCookies)
+session.cookies=wenshuCookies
 ciphertext=get_ciphertext()
-res=session.post("https://wenshu.court.gov.cn/website/parse/rest.q4w", headers=headers, cookies=cookies, data=f"pageId={pageId}&cprqStart=2023-11-16&cprqEnd=2023-11-17&cfg=com.lawyee.wbsttools.web.parse.dto.AppUserDTO%40currentUser&__RequestVerificationToken={__RequestVerificationToken}Pegs&wh=907&ww=917&cs=0")
-session.post("https://wenshu.court.gov.cn/website/parse/rest.q4w", headers=headers, cookies=cookies, data=f"pageId={pageId}&cprqStart=2023-11-16&cprqEnd=2023-11-17&sortFields=s50%3Adesc&ciphertext={get_ciphertext()}&pageNum=1&queryCondition=%5B%7B%22key%22%3A%22cprq%22%2C%22value%22%3A%222023-11-16+TO+2023-11-17%22%7D%5D&cfg=com.lawyee.judge.dc.parse.dto.SearchDataDsoDTO%40queryDoc&__RequestVerificationToken={__RequestVerificationToken}&wh=907&ww=917&cs=0")
-print(ciphertext)
+session.post(f"https://wenshu.court.gov.cn/website/parse/rest.q4w?pageId={pageId}&cprqStart=2023-11-16&cprqEnd=2023-11-17&cfg=com.lawyee.wbsttools.web.parse.dto.AppUserDTO%40currentUser&__RequestVerificationToken={__RequestVerificationToken}Pegs&wh=907&ww=917&cs=0", headers=headers, cookies=wenshuCookies)
+session.cookies=wenshuCookies
+res=session.post(f"https://wenshu.court.gov.cn/website/parse/rest.q4w?pageId={pageId}&cprqStart=2023-11-16&cprqEnd=2023-11-17&sortFields=s50%3Adesc&ciphertext={ciphertext}&pageNum=1&queryCondition=%5B%7B%22key%22%3A%22cprq%22%2C%22value%22%3A%222023-11-16+TO+2023-11-17%22%7D%5D&cfg=com.lawyee.judge.dc.parse.dto.SearchDataDsoDTO%40queryDoc&__RequestVerificationToken={__RequestVerificationToken}&wh=907&ww=829&cs=0", headers=headers, cookies=wenshuCookies)
+###############BBBBBBBBBBBBUG!!!!!!!!!!!!!!
+# I'm waiting for a miracle~
+print(session.cookies)
+print(res.cookies)
 resjson=res.json()
 secretKey=resjson.get('secretKey')
 result=resjson.get('result')
